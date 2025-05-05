@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Kalkulátor MD4 Hashe Souborů</title>
+    <style>
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+            font-family: monospace, monospace;
+            text-transform: uppercase;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            width: 750px;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        p {
+            margin-top: 15px;
+            word-wrap: break-word;
+            width: 500px;
+        }
+
+        input {
+            margin-top: 15px;
+            word-wrap: break-word;
+            width: 500px;
+        }
+
+        /* Styl pouze pro tisk - skrytí tlačítek a vstupů */
+        @media print {
+            input, button {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <input type="file" id="fileInput" multiple>
+    <button onclick="computeMD4()">Výpočet MD4</button>
+    <table>
+        <thead>
+        <tr>
+            <th>Název souboru</th>
+            <th>MD4 Hash</th>
+            <th>Komentář</th>
+        </tr>
+        </thead>
+        <tbody id="resultsTable">
+        <!-- Výsledky budou přidány zde -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    /*
+     * JavaScript implementace algoritmu MD4 Message Digest
+     * RSA Data Security, Inc., jak je definováno v RFC 1320.
+     * Verze 2.1 Copyright (C) Jerrad Pierce, Paul Johnston 1999 - 2002.
+     * Další přispěvatelé: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+     * Distribuováno pod licencí BSD
+     * Více informací na http://pajhome.org.uk/crypt/md5
+     */
+
+    /*
+     * Konfigurovatelné proměnné. Možná budete muset tyto hodnoty upravit,
+     * aby byly kompatibilní se serverovou stranou, ale výchozí hodnoty fungují ve většině případů.
+     */
+    var hexcase = 0;  /* formát hex výstupu. 0 - malá písmena; 1 - velká písmena */
+    var b64pad  = ""; /* znak výplně base-64. "=" pro striktní dodržení RFC      */
+    var chrsz   = 8;  /* bitů na vstupní znak. 8 - ASCII; 16 - Unicode           */
+
+    /*
+     * Toto jsou funkce, které budete obvykle chtít volat
+     */
+    function hex_md4(s){ return binl2hex(core_md4(str2binl(s), s.length * chrsz));}
+    function b64_md4(s){ return binl2b64(core_md4(str2binl(s), s.length * chrsz));}
+    function str_md4(s){ return binl2str(core_md4(str2binl(s), s.length * chrsz));}
+    function hex_hmac_md4(key, data) { return binl2hex(core_hmac_md4(key, data)); }
+    function b64_hmac_md4(key, data) { return binl2b64(core_hmac_md4(key, data)); }
+    function str_hmac_md4(key, data) { return binl2str(core_hmac_md4(key, data)); }
+
+    /*
+     * Provedení jednoduchého self-testu ke kontrole, zda VM funguje
+     */
+    function md4_vm_test()
+    {
+        return hex_md4("abc") == "a448017aaf21d8525fc10ae87aa6729d";
+    }
+
+    /*
+     * Výpočet MD4 pole slov s malou endianitou a bitové délky
+     */
+    function core_md4(x, len)
+    {
+        /* přidání výplně */
+        x[len >> 5] |= 0x80 << (len % 32);
+        x[(((len + 64) >>> 9) << 4) + 14] = len;
+
+        var a =  1732584193;
+        var b = -271733879;
+        var c = -1732584194;
+        var d =  271733878;
+
+        for(var i = 0; i < x.length; i += 16)
+        {
+            var olda = a;
+            var oldb = b;
+            var oldc = c;
+            var oldd = d;
+
+            a = md4_ff(a, b, c, d, x[i+ 0], 3 );
+            d = md4_ff(d, a, b, c, x[i+ 1], 7 );
+            c = md4_ff(c, d, a, b, x[i+ 2], 11);
+            b = md4_ff(b, c, d, a, x[i+ 3], 19);
+            a = md4_ff(a, b, c, d, x[i+ 4], 3 );
+            d = md4_ff(d, a, b, c, x[i+ 5], 7 );
+            c = md4_ff(c, d, a, b, x[i+ 6], 11);
+            b = md4_ff(b, c, d, a, x[i+ 7], 19);
+            a = md4_ff(a, b, c, d, x[i+ 8], 3 );
+            d = md4_ff(d, a, b, c, x[i+ 9], 7 );
+            c = md4_ff(c, d, a, b, x[i+10], 11);
+            b = md4_ff(b, c, d, a, x[i+11], 19);
+            a = md4_ff(a, b, c, d, x[i+12], 3 );
+            d = md4_ff(d, a, b, c, x[i+13], 7 );
+            c = md4_ff(c, d, a, b, x[i+14], 11);
+            b = md4_ff(b, c, d, a, x[i+15], 19);
+
+            a = md4_gg(a, b, c, d, x[i+ 0], 3 );
+            d = md4_gg(d, a, b, c, x[i+ 4], 5 );
+            c = md4_gg(c, d, a, b, x[i+ 8], 9 );
+            b = md4_gg(b, c, d, a, x[i+12], 13);
+            a = md4_gg(a, b, c, d, x[i+ 1], 3 );
+            d = md4_gg(d, a, b, c, x[i+ 5], 5 );
+            c = md4_gg(c, d, a, b, x[i+ 9], 9 );
+            b = md4_gg(b, c, d, a, x[i+13], 13);
+            a = md4_gg(a, b, c, d, x[i+ 2], 3 );
+            d = md4_gg(d, a, b, c, x[i+ 6], 5 );
+            c = md4_gg(c, d, a, b, x[i+10], 9 );
+            b = md4_gg(b, c, d, a, x[i+14], 13);
+            a = md4_gg(a, b, c, d, x[i+ 3], 3 );
+            d = md4_gg(d, a, b, c, x[i+ 7], 5 );
+            c = md4_gg(c, d, a, b, x[i+11], 9 );
+            b = md4_gg(b, c, d, a, x[i+15], 13);
+
+            a = md4_hh(a, b, c, d, x[i+ 0], 3 );
+            d = md4_hh(d, a, b, c, x[i+ 8], 9 );
+            c = md4_hh(c, d, a, b, x[i+ 4], 11);
+            b = md4_hh(b, c, d, a, x[i+12], 15);
+            a = md4_hh(a, b, c, d, x[i+ 2], 3 );
+            d = md4_hh(d, a, b, c, x[i+10], 9 );
+            c = md4_hh(c, d, a, b, x[i+ 6], 11);
+            b = md4_hh(b, c, d, a, x[i+14], 15);
+            a = md4_hh(a, b, c, d, x[i+ 1], 3 );
+            d = md4_hh(d, a, b, c, x[i+ 9], 9 );
+            c = md4_hh(c, d, a, b, x[i+ 5], 11);
+            b = md4_hh(b, c, d, a, x[i+13], 15);
+            a = md4_hh(a, b, c, d, x[i+ 3], 3 );
+            d = md4_hh(d, a, b, c, x[i+11], 9 );
+            c = md4_hh(c, d, a, b, x[i+ 7], 11);
+            b = md4_hh(b, c, d, a, x[i+15], 15);
+
+            a = safe_add(a, olda);
+            b = safe_add(b, oldb);
+            c = safe_add(c, oldc);
+            d = safe_add(d, oldd);
+
+        }
+        return Array(a, b, c, d);
+
+    }
+
+    /*
+     * Tyto funkce implementují základní operace pro každé kolo algoritmu.
+     */
+    function md4_cmn(q, a, b, x, s, t)
+    {
+        return safe_add(rol(safe_add(safe_add(a, q), safe_add(x, t)), s), b);
+    }
+    function md4_ff(a, b, c, d, x, s)
+    {
+        return md4_cmn((b & c) | ((~b) & d), a, 0, x, s, 0);
+    }
+    function md4_gg(a, b, c, d, x, s)
+    {
+        return md4_cmn((b & c) | (b & d) | (c & d), a, 0, x, s, 1518500249);
+    }
+    function md4_hh(a, b, c, d, x, s)
+    {
+        return md4_cmn(b ^ c ^ d, a, 0, x, s, 1859775393);
+    }
+
+    /*
+     * Výpočet HMAC-MD4 pro klíč a některá data
+     */
+    function core_hmac_md4(key, data)
+    {
+        var bkey = str2binl(key);
+        if(bkey.length > 16) bkey = core_md4(bkey, key.length * chrsz);
+
+        var ipad = Array(16), opad = Array(16);
+        for(var i = 0; i < 16; i++)
+        {
+            ipad[i] = bkey[i] ^ 0x36363636;
+            opad[i] = bkey[i] ^ 0x5C5C5C5C;
+        }
+
+        var hash = core_md4(ipad.concat(str2binl(data)), 512 + data.length * chrsz);
+        return core_md4(opad.concat(hash), 512 + 128);
+    }
+
+    /*
+     * Přidání celých čísel, zabalení na 2^32. Používá 16bitové operace interně
+     * pro obejití chyb v některých JS interpreterech.
+     */
+    function safe_add(x, y)
+    {
+        var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+        var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+        return (msw << 16) | (lsw & 0xFFFF);
+    }
+
+    /*
+     * Bitová rotace 32bitového čísla doleva.
+     */
+    function rol(num, cnt)
+    {
+        return (num << cnt) | (num >>> (32 - cnt));
+    }
+
+    /*
+     * Převod řetězce na pole slov s malou endianitou
+     * Pokud je chrsz ASCII, znaky >255 mají tichý ignorován high-byte.
+     */
+    function str2binl(str)
+    {
+        var bin = Array();
+        var mask = (1 << chrsz) - 1;
+        for(var i = 0; i < str.length * chrsz; i += chrsz)
+            bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (i%32);
+        return bin;
+    }
+
+    /*
+     * Převod pole slov s malou endianitou na řetězec
+     */
+    function binl2str(bin)
+    {
+        var str = "";
+        var mask = (1 << chrsz) - 1;
+        for(var i = 0; i < bin.length * 32; i += chrsz)
+            str += String.fromCharCode((bin[i>>5] >>> (i % 32)) & mask);
+        return str;
+    }
+
+    /*
+     * Převod pole slov s malou endianitou na hexadecimální řetězec.
+     */
+    function binl2hex(binarray)
+    {
+        var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
+        var str = "";
+        for(var i = 0; i < binarray.length * 4; i++)
+        {
+            str += hex_tab.charAt((binarray[i>>2] >> ((i%4)*8+4)) & 0xF) +
+                hex_tab.charAt((binarray[i>>2] >> ((i%4)*8  )) & 0xF);
+        }
+        return str;
+    }
+
+    /*
+     * Převod pole slov s malou endianitou na řetězec base-64
+     */
+    function binl2b64(binarray)
+    {
+        var tab = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        var str = "";
+        for(var i = 0; i < binarray.length * 4; i += 3)
+        {
+            var triplet = (((binarray[i   >> 2] >> 8 * ( i   %4)) & 0xFF) << 16)
+                | (((binarray[i+1 >> 2] >> 8 * ((i+1)%4)) & 0xFF) << 8 )
+                |  ((binarray[i+2 >> 2] >> 8 * ((i+2)%4)) & 0xFF);
+            for(var j = 0; j < 4; j++)
+            {
+                if(i * 8 + j * 6 > binarray.length * 32) str += b64pad;
+                else str += tab.charAt((triplet >> 6*(3-j)) & 0x3F);
+            }
+        }
+        return str;
+    }
+
+    // Pomocná funkce: Převod ArrayBuffer nebo Uint8Array na hexadecimální řetězec
+    function bufferToHex(buffer) {
+        return Array.prototype.map.call(buffer, function(byte) {
+            return ('00' + byte.toString(16)).slice(-2);
+        }).join('');
+    }
+
+    function hex2a(hex) {
+        var str = '';
+        for (var i = 0; i < hex.length; i += 2) {
+            str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+        }
+        return str;
+    }
+
+    function addHyphensToHash(hash) {
+        return hash.slice(0, 8) + '-' +
+            hash.slice(8, 16) + '-' +
+            hash.slice(16, 24) + '-' +
+            hash.slice(24, 32);
+    }
+
+    function computeMD4() {
+        var fileInput = document.getElementById('fileInput');
+        var files = fileInput.files;
+        var resultsTable = document.getElementById('resultsTable');
+
+        // Vyčištění předchozích výsledků
+        resultsTable.innerHTML = '';
+
+        for (let file of files) {
+            let reader = new FileReader();
+            reader.onload = function (event) {
+                var contents = event.target.result;
+
+                // Převod ArrayBuffer na hexadecimální řetězec
+                var hexContents = bufferToHex(new Uint8Array(contents));
+
+                // Výpočet MD4 hashe
+                var md4hash = hex_md4(hex2a(hexContents));
+
+                // Přidání výsledku do tabulky
+                let row = resultsTable.insertRow();
+                let cell1 = row.insertCell(0);
+                let cell2 = row.insertCell(1);
+                let cell3 = row.insertCell(2);
+                cell1.innerText = file.name;
+                cell2.innerText = addHyphensToHash(md4hash);
+                cell3.innerText = ''; // Prázdný sloupec pro komentář
+            };
+            reader.readAsArrayBuffer(file); // Čtení souboru jako binární ArrayBuffer
+        }
+    }
+
+</script>
+
+</body>
+</html>
