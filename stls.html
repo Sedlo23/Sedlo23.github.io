@@ -87,15 +87,6 @@
             background-color: #d32f2f;
         }
 
-        .pdf-viewer {
-            width: 100%;
-            height: 400px;
-            display: none;
-            margin-top: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
         .pdf-preview-container {
             margin-top: 15px;
             display: none;
@@ -154,15 +145,12 @@
 <div id="loading" class="loading">Loading models from STL folder...</div>
 <div id="container" class="container"></div>
 
+<!-- Load libraries directly -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/STLLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdf.js@2.12.313/build/pdf.min.js"></script>
 
 <script>
-    // Initialize PDF.js worker
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdf.js@2.12.313/build/pdf.worker.min.js';
-
     // Main functionality
     document.addEventListener('DOMContentLoaded', async () => {
         const container = document.getElementById('container');
@@ -197,11 +185,6 @@
         try {
             // In a real environment, this would need server-side code or file system access
             // For demonstration, we'll simulate file listing with fetch from a directory listing
-            // Note: This is a placeholder and won't work directly in browsers without proper backend
-
-            // Simulating file discovery for demonstration
-            // In a real implementation, this would be replaced with actual directory reading
-            // Using fetch to a server endpoint that lists files or File System Access API
 
             // For demonstration purposes, we'll create some sample files
             // In a real application, replace this with actual file discovery
@@ -490,11 +473,9 @@ endsolid ${fileName}`;
         }
     }
 
-    // Function to load PDF preview
+    // Function to load PDF preview using simple canvas approach instead of PDF.js
     function loadPDFPreview(pdfPath, canvas) {
-        // In a real implementation, load the actual PDF
-        // For demonstration, we'll create a simple preview
-
+        // Get the canvas context
         const ctx = canvas.getContext('2d');
 
         // Set canvas dimensions
@@ -511,7 +492,7 @@ endsolid ${fileName}`;
         ctx.textBaseline = 'middle';
 
         const fileName = pdfPath.split('/').pop();
-        ctx.fillText(`PDF Preview: ${fileName}`, canvas.width / 2, canvas.height / 2 - 15);
+        ctx.fillText(`PDF: ${fileName}`, canvas.width / 2, canvas.height / 2 - 15);
 
         // Draw PDF icon
         ctx.fillStyle = '#d32f2f';
@@ -535,25 +516,46 @@ endsolid ${fileName}`;
         ctx.fillStyle = 'white';
         ctx.font = 'bold 12px Arial';
         ctx.fillText('PDF', iconX, iconY + 2);
+    }
 
-        // In a real implementation, we would load the actual PDF:
+    // Function to dynamically load actual STL files
+    // This is a placeholder for real implementation
+    async function loadActualFiles() {
+        // In a real implementation, this would scan the "STL" directory
+        // and load the actual STL files found there
+
+        // For server environments, this might use:
+        // 1. A server-side script to list files in the directory
+        // 2. Fetch API to get the file list
+        // 3. Then process each file
+
+        // Example of a server endpoint that would return file list:
+        // const response = await fetch('/api/list-stl-files');
+        // const files = await response.json();
+        // return files;
+
+        // For local file system in modern browsers, you could use File System Access API:
+        // But this requires user permission and modern browser support
         /*
-        pdfjsLib.getDocument(pdfPath).promise.then(pdf => {
-            pdf.getPage(1).then(page => {
-                const viewport = page.getViewport({ scale: 0.5 });
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+        try {
+            const dirHandle = await window.showDirectoryPicker();
+            const files = [];
 
-                const renderContext = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.stl')) {
+                    const file = await entry.getFile();
+                    files.push({
+                        name: file.name,
+                        path: URL.createObjectURL(file)
+                    });
+                }
+            }
 
-                page.render(renderContext);
-            });
-        }).catch(error => {
-            console.error('Error loading PDF preview:', error);
-        });
+            return files;
+        } catch (error) {
+            console.error('Error accessing files:', error);
+            return [];
+        }
         */
     }
 </script>
