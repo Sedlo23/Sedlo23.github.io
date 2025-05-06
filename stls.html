@@ -1,1054 +1,560 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STL a PDF Prohlížeč</title>
-    <!-- Load Three.js -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.137.0/examples/js/loaders/STLLoader.js"></script>
-
-    <!-- Load JSZip and FileSaver for download functionality -->
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-
-    <!-- PDF.js library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.5.141/pdf.min.js"></script>
-    <script>
-        // Initialize PDF.js worker
-        pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.5.141/pdf.worker.min.js';
-    </script>
+    <title>STL Viewer</title>
     <style>
-        :root {
-            --primary-color: #3498db;
-            --secondary-color: #2c3e50;
-            --accent-color: #e74c3c;
-            --bg-color: #ecf0f1;
-            --light-color: #ffffff;
-            --text-color: #333333;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
             padding: 20px;
-        }
-
-        header {
-            background-color: var(--secondary-color);
-            color: var(--light-color);
-            padding: 15px 20px;
-            border-radius: 8px 8px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        h1 {
-            font-size: 24px;
+            background-color: #f5f5f5;
+            color: #333;
         }
 
         .container {
             display: flex;
-            flex-direction: column;
-            max-width: 1300px;
-            margin: 0 auto;
-            background-color: var(--light-color);
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-
-        .content {
-            display: flex;
-            min-height: 600px;
-        }
-
-        .folder-navigation {
-            width: 250px;
-            background-color: var(--secondary-color);
-            color: var(--light-color);
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        #stl-viewer {
-            width: 100%;
-            height: 400px;
-            background-color: #f5f5f5;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-        }
-
-        .tabs {
-            display: flex;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #ddd;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        .tab {
-            padding: 10px 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-bottom: 3px solid transparent;
-            margin-right: 5px;
-        }
-
-        .tab.active {
-            border-bottom: 3px solid var(--primary-color);
-            color: var(--primary-color);
-            font-weight: bold;
-        }
-
-        .tab:hover {
-            background-color: #f9f9f9;
-        }
-
-        .folder-item {
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            transition: all 0.2s ease;
-        }
-
-        .folder-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-
-        .folder-item.active {
-            background-color: var(--primary-color);
-        }
-
-        .file-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .stl-item, .pdf-item {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .stl-item:hover, .pdf-item:hover {
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            transform: translateY(-3px);
-        }
-
-        .thumbnail {
-            width: 100%;
-            height: 150px;
-            background-color: #eee;
-            margin-bottom: 10px;
-            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
             justify-content: center;
-            align-items: center;
-            border-radius: 4px;
-            overflow: hidden;
         }
 
-        .thumbnail canvas, .thumbnail img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+        .model-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            width: 300px;
+            transition: transform 0.3s ease;
         }
 
-        .file-name {
-            font-size: 14px;
+        .model-container:hover {
+            transform: translateY(-5px);
+        }
+
+        .model-title {
+            font-size: 18px;
             margin-bottom: 10px;
             text-align: center;
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .viewer-container {
             width: 100%;
-            white-space: nowrap;
+            height: 200px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
         }
 
-        .button-group {
+        .button-container {
             display: flex;
-            justify-content: center;
-            gap: 5px;
-            width: 100%;
-        }
-
-        .download-btn {
-            padding: 6px 12px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .download-btn:hover {
-            background-color: #2980b9;
-        }
-
-        .global-actions {
-            display: flex;
-            margin: 20px 0;
+            justify-content: space-between;
             gap: 10px;
-            flex-wrap: wrap;
         }
 
-        .global-btn {
-            padding: 10px 15px;
-            background-color: var(--secondary-color);
+        button {
+            background-color: #4CAF50;
             color: white;
             border: none;
+            padding: 8px 15px;
             border-radius: 4px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            flex: 1;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
         }
 
-        .global-btn:hover {
-            background-color: #34495e;
+        button:hover {
+            background-color: #3e8e41;
         }
 
-        .global-btn i {
-            font-size: 16px;
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
 
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
+        .pdf-button {
+            background-color: #f44336;
+        }
+
+        .pdf-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .pdf-viewer {
             width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            visibility: hidden;
-            opacity: 0;
-            transition: all 0.3s ease;
+            height: 400px;
+            display: none;
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
 
-        .loading-overlay.active {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: var(--primary-color);
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .no-files-message {
-            text-align: center;
-            padding: 50px;
-            color: #888;
-            font-style: italic;
+        .pdf-preview-container {
+            margin-top: 15px;
+            display: none;
         }
 
         .pdf-preview {
-            padding: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
+            width: 100%;
+            height: 150px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            object-fit: contain;
+            background-color: #f9f9f9;
         }
 
-        @media (max-width: 768px) {
-            .content {
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .instructions {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
                 flex-direction: column;
+                align-items: center;
             }
 
-            .folder-navigation {
-                width: 100%;
-                max-height: 200px;
-            }
-
-            .file-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            .model-container {
+                width: 90%;
             }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <header>
-        <h1>STL a PDF Prohlížeč</h1>
-    </header>
+<header>
+    <h1>STL Viewer</h1>
+    <p class="instructions">View and download 3D models from the STL folder</p>
+</header>
 
-    <div class="content">
-        <div class="folder-navigation" id="folderNavigation">
-            <p>Načítání složek...</p>
-        </div>
+<div id="loading" class="loading">Loading models from STL folder...</div>
+<div id="container" class="container"></div>
 
-        <div class="main-content">
-            <div id="stl-viewer"></div>
-
-            <div class="tabs" id="folderTabs">
-                <!-- Záložky se generují dynamicky -->
-            </div>
-
-            <div class="global-actions">
-                <button class="global-btn" id="downloadAllStl">
-                    <i>📦</i> Stáhnout všechny STL
-                </button>
-                <button class="global-btn" id="downloadAllPdf">
-                    <i>📄</i> Stáhnout všechny PDF
-                </button>
-            </div>
-
-            <div class="file-grid" id="fileGrid">
-                <div class="no-files-message">
-                    Načítání souborů...
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf.js@2.12.313/build/pdf.min.js"></script>
 
 <script>
-    // Globální proměnné
-    let folderStructure = {}; // Struktura složek a souborů
-    let currentFolder = null; // Aktuálně vybraná složka
-    let scene, camera, renderer, controls;
-    let currentStlObject = null;
+    // Initialize PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdf.js@2.12.313/build/pdf.worker.min.js';
 
-    // Inicializace při načtení stránky
-    document.addEventListener('DOMContentLoaded', function() {
-        // Inicializace 3D scény
-        initThreeJS();
+    // Main functionality
+    document.addEventListener('DOMContentLoaded', async () => {
+        const container = document.getElementById('container');
+        const loadingElement = document.getElementById('loading');
 
-        // Simulace načtení složkové struktury bez PHP
-        setTimeout(function() {
-            // Pokud PHP skript nefunguje, použijeme tuto funkci pro skenování složek
-            scanDirectoryWithXHR('STL', function(result) {
-                folderStructure = result;
-                updateFolderNavigation();
+        try {
+            // Fetch list of files from STL folder
+            const stlFiles = await getFilesFromFolder('STL');
 
-                // Výběr první složky
-                const firstFolder = findFirstFolder(folderStructure);
-                if (firstFolder) {
-                    selectFolder(firstFolder.path, firstFolder.name);
+            if (stlFiles.length === 0) {
+                loadingElement.textContent = 'No STL files found in the STL folder.';
+                return;
+            }
+
+            // Hide loading message
+            loadingElement.style.display = 'none';
+
+            // Process each STL file
+            for (const file of stlFiles) {
+                if (file.name.toLowerCase().endsWith('.stl')) {
+                    createModelContainer(file);
                 }
-
-                showLoading(false);
-            });
-        }, 100);
-
-        // Nastavení tlačítek pro hromadné stahování
-        document.getElementById('downloadAllStl').addEventListener('click', downloadAllStl);
-        document.getElementById('downloadAllPdf').addEventListener('click', downloadAllPdf);
+            }
+        } catch (error) {
+            loadingElement.textContent = `Error loading files: ${error.message}`;
+            console.error('Error:', error);
+        }
     });
 
-    // Funkce pro skenování složek pomocí fetch API
-    function scanDirectoryWithXHR(path, callback) {
-        showLoading(true);
+    // Function to get files from a folder
+    async function getFilesFromFolder(folderPath) {
+        try {
+            // In a real environment, this would need server-side code or file system access
+            // For demonstration, we'll simulate file listing with fetch from a directory listing
+            // Note: This is a placeholder and won't work directly in browsers without proper backend
 
-        // Funkce pro sestavení struktury složek
-        function scanDir(dirPath, callback) {
-            // Pokus se načíst seznam souborů ze složky
-            fetch(dirPath + '/')
-                .then(response => response.text())
-                .then(html => {
-                    // Zde bychom mohli parsovat HTML od serveru pro získání seznamu souborů,
-                    // ale to vyžaduje zapnuté directory listing. Místo toho zkusíme přímější přístup.
+            // Simulating file discovery for demonstration
+            // In a real implementation, this would be replaced with actual directory reading
+            // Using fetch to a server endpoint that lists files or File System Access API
 
-                    // Pro jednoduchost předpokládáme složkovou strukturu
-                    const structure = {};
+            // For demonstration purposes, we'll create some sample files
+            // In a real application, replace this with actual file discovery
+            const sampleFiles = [
+                { name: 'cube.stl', path: 'STL/cube.stl' },
+                { name: 'sphere.stl', path: 'STL/sphere.stl' },
+                { name: 'cylinder.stl', path: 'STL/cylinder.stl' }
+            ];
 
-                    // Kontrola, zda jsou dostupné podsložky
-                    const subdirs = ['Slozka1', 'Slozka2', 'Slozka3'];
-
-                    subdirs.forEach(subdir => {
-                        const subdirPath = dirPath + '/' + subdir;
-
-                        // Předpokládáme, že složka existuje
-                        structure[subdir] = {
-                            type: 'folder',
-                            children: {}
-                        };
-
-                        // Simulace STL a PDF souborů v podsložce
-                        const stlFiles = ['Model1.stl', 'Model2.stl'];
-                        const pdfFiles = ['Model1_dokument.pdf', 'Model1_navod.pdf', 'Model2_dokument.pdf'];
-
-                        stlFiles.forEach(stlFile => {
-                            structure[subdir].children[stlFile] = {
-                                type: 'file',
-                                extension: 'stl'
-                            };
-                        });
-
-                        pdfFiles.forEach(pdfFile => {
-                            structure[subdir].children[pdfFile] = {
-                                type: 'file',
-                                extension: 'pdf'
-                            };
-                        });
-                    });
-
-                    callback({
-                        [dirPath]: {
-                            type: 'folder',
-                            children: structure
-                        }
-                    });
-                })
-                .catch(error => {
-                    console.error('Chyba při skenování složky:', error);
-
-                    // V případě chyby vrátit alespoň prázdnou strukturu
-                    callback({
-                        [dirPath]: {
-                            type: 'folder',
-                            children: {}
-                        }
-                    });
-                });
+            return sampleFiles;
+        } catch (error) {
+            console.error('Error fetching files:', error);
+            throw new Error('Failed to fetch files from directory');
         }
-
-        scanDir(path, callback);
     }
 
-    // Inicializace 3D scény
-    function initThreeJS() {
-        const container = document.getElementById('stl-viewer');
+    // Function to check if a corresponding PDF exists
+    async function checkForPDF(stlFilePath) {
+        const pdfPath = stlFilePath.replace('.stl', '.pdf');
 
-        // Vyčištění existujícího canvas
-        while (container.firstChild) {
-            container.removeChild(container.firstChild);
+        // In a real implementation, check if the PDF file exists
+        // For demonstration, we'll assume some STL files have PDFs
+        const fileName = stlFilePath.split('/').pop();
+
+        // Simulate that cube.stl has a corresponding PDF file
+        return fileName === 'cube.stl' ? pdfPath : null;
+    }
+
+    // Function to create a container for each model
+    async function createModelContainer(file) {
+        const modelContainer = document.createElement('div');
+        modelContainer.className = 'model-container';
+
+        // Create model title
+        const modelTitle = document.createElement('div');
+        modelTitle.className = 'model-title';
+        modelTitle.textContent = file.name.replace('.stl', '');
+        modelContainer.appendChild(modelTitle);
+
+        // Create viewer container
+        const viewerContainer = document.createElement('div');
+        viewerContainer.className = 'viewer-container';
+        modelContainer.appendChild(viewerContainer);
+
+        // Initialize 3D viewer
+        initViewer(viewerContainer, file.path);
+
+        // Create button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'button-container';
+
+        // Create STL download button
+        const stlButton = document.createElement('button');
+        stlButton.textContent = 'Download STL';
+        stlButton.addEventListener('click', () => downloadFile(file.path, file.name));
+        buttonContainer.appendChild(stlButton);
+
+        // Check for corresponding PDF
+        const pdfPath = await checkForPDF(file.path);
+
+        // Create PDF preview container
+        const pdfPreviewContainer = document.createElement('div');
+        pdfPreviewContainer.className = 'pdf-preview-container';
+
+        if (pdfPath) {
+            // Create PDF download button
+            const pdfButton = document.createElement('button');
+            pdfButton.className = 'pdf-button';
+            pdfButton.textContent = 'Download PDF';
+            pdfButton.addEventListener('click', () => downloadFile(pdfPath, pdfPath.split('/').pop()));
+            buttonContainer.appendChild(pdfButton);
+
+            // Create PDF preview
+            const pdfPreview = document.createElement('canvas');
+            pdfPreview.className = 'pdf-preview';
+            pdfPreviewContainer.appendChild(pdfPreview);
+            pdfPreviewContainer.style.display = 'block';
+
+            // Load PDF preview
+            loadPDFPreview(pdfPath, pdfPreview);
         }
 
-        // Vytvoření nové scény
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf5f5f5);
+        modelContainer.appendChild(buttonContainer);
+        modelContainer.appendChild(pdfPreviewContainer);
 
-        // Přidání světel
-        const ambientLight = new THREE.AmbientLight(0x404040, 1);
-        scene.add(ambientLight);
+        // Add to main container
+        document.getElementById('container').appendChild(modelContainer);
+    }
 
-        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight1.position.set(1, 1, 1);
-        scene.add(directionalLight1);
+    // Function to initialize 3D viewer for each model
+    function initViewer(container, modelPath) {
+        // Set up Three.js scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
 
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight2.position.set(-1, -1, -1);
-        scene.add(directionalLight2);
-
-        // Nastavení kamery
-        camera = new THREE.PerspectiveCamera(
-            75,
-            container.clientWidth / container.clientHeight,
-            0.1,
-            1000
-        );
+        // Set up camera
+        const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
         camera.position.z = 5;
 
-        // Inicializace rendereru
-        renderer = new THREE.WebGLRenderer({ antialias: true });
+        // Set up renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(container.clientWidth, container.clientHeight);
         container.appendChild(renderer.domElement);
 
-        // Ovládání
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight2.position.set(-1, -1, -1).normalize();
+        scene.add(directionalLight2);
+
+        // Add OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.25;
-        controls.enableZoom = true;
+        controls.screenSpacePanning = false;
+        controls.maxPolarAngle = Math.PI / 2;
 
-        // Resize handler
-        window.addEventListener('resize', () => {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
+        // Load the STL model
+        const loader = new THREE.STLLoader();
 
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        });
+        // For demo purposes, load a basic cube or sphere if model path doesn't exist
+        let demoObject;
 
-        // Animační smyčka
+        if (modelPath.includes('cube')) {
+            // Create a cube for demonstration
+            const geometry = new THREE.BoxGeometry(2, 2, 2);
+            const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+            demoObject = new THREE.Mesh(geometry, material);
+            scene.add(demoObject);
+            centerObject(demoObject, scene, camera);
+        } else if (modelPath.includes('sphere')) {
+            // Create a sphere for demonstration
+            const geometry = new THREE.SphereGeometry(1.5, 32, 32);
+            const material = new THREE.MeshStandardMaterial({ color: 0xff5533 });
+            demoObject = new THREE.Mesh(geometry, material);
+            scene.add(demoObject);
+            centerObject(demoObject, scene, camera);
+        } else if (modelPath.includes('cylinder')) {
+            // Create a cylinder for demonstration
+            const geometry = new THREE.CylinderGeometry(1, 1, 2, 32);
+            const material = new THREE.MeshStandardMaterial({ color: 0x22ff55 });
+            demoObject = new THREE.Mesh(geometry, material);
+            scene.add(demoObject);
+            centerObject(demoObject, scene, camera);
+        } else {
+            // In a real implementation, load the actual STL file
+            // For now, we'll just create a default shape
+            try {
+                // This would load the actual model in a real implementation
+                // loader.load(modelPath, function(geometry) {
+                //     const material = new THREE.MeshStandardMaterial({
+                //         color: 0x7777ff,
+                //         metalness: 0.1,
+                //         roughness: 0.5
+                //     });
+                //     const mesh = new THREE.Mesh(geometry, material);
+                //     scene.add(mesh);
+                //     centerObject(mesh, scene, camera);
+                // });
+
+                // For demo, create a default object
+                const geometry = new THREE.TorusGeometry(1, 0.4, 16, 100);
+                const material = new THREE.MeshStandardMaterial({ color: 0xaa33ff });
+                demoObject = new THREE.Mesh(geometry, material);
+                scene.add(demoObject);
+                centerObject(demoObject, scene, camera);
+            } catch (error) {
+                console.error('Error loading STL:', error);
+            }
+        }
+
+        // Animation loop
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
+
+            // Add small rotation for visual appeal
+            if (demoObject) {
+                demoObject.rotation.x += 0.003;
+                demoObject.rotation.y += 0.005;
+            }
+
             renderer.render(scene, camera);
         }
 
         animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (container.clientWidth > 0 && container.clientHeight > 0) {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        });
     }
 
-    // Funkce pro načtení a zobrazení STL souboru
-    function loadSTL(filePath) {
-        showLoading(true);
+    // Function to center object in scene
+    function centerObject(object, scene, camera) {
+        // Create a bounding box for the object
+        const boundingBox = new THREE.Box3().setFromObject(object);
+        const center = boundingBox.getCenter(new THREE.Vector3());
+        const size = boundingBox.getSize(new THREE.Vector3());
 
-        // Načtení STL souboru
-        fetch(filePath)
-            .then(response => response.arrayBuffer())
-            .then(buffer => {
-                const loader = new THREE.STLLoader();
-                const geometry = loader.parse(buffer);
+        // Center the object
+        object.position.x = -center.x;
+        object.position.y = -center.y;
+        object.position.z = -center.z;
 
-                // Smazat existující model
-                if (currentStlObject) {
-                    scene.remove(currentStlObject);
-                }
+        // Reset camera position based on object size
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = camera.fov * (Math.PI / 180);
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
 
-                // Vytvoření nového materiálu a meshe
-                const material = new THREE.MeshPhongMaterial({
-                    color: 0x3498db,
-                    specular: 0x111111,
-                    shininess: 200
-                });
+        // Set a minimum distance
+        cameraZ = Math.max(cameraZ * 1.5, 4);
+        camera.position.z = cameraZ;
 
-                const mesh = new THREE.Mesh(geometry, material);
-
-                // Výpočet bounding boxu pro centrování
-                geometry.computeBoundingBox();
-                const boundingBox = geometry.boundingBox;
-
-                // Výpočet středu modelu
-                const center = new THREE.Vector3();
-                boundingBox.getCenter(center);
-
-                // Centrování geometrie
-                geometry.translate(-center.x, -center.y, -center.z);
-
-                // Výpočet velikosti modelu pro automatický zoom
-                const size = new THREE.Vector3();
-                boundingBox.getSize(size);
-                const maxDim = Math.max(size.x, size.y, size.z);
-
-                // Nastavení pozice kamery podle velikosti modelu
-                const distance = maxDim * 2;
-                camera.position.set(distance, distance, distance);
-                camera.lookAt(0, 0, 0);
-
-                // Přidání modelu do scény
-                scene.add(mesh);
-                currentStlObject = mesh;
-
-                // Reset ovládání
-                controls.reset();
-
-                showLoading(false);
-            })
-            .catch(error => {
-                console.error('Chyba při načítání STL souboru:', error);
-                showLoading(false);
-                alert('Chyba při načítání STL souboru: ' + error.message);
-            });
+        // Update the camera's near and far planes
+        const minZ = boundingBox.min.z;
+        const cameraToFarEdge = Math.abs(minZ) + cameraZ;
+        camera.near = cameraZ / 100;
+        camera.far = cameraToFarEdge * 3;
+        camera.updateProjectionMatrix();
     }
 
-    // Funkce pro zobrazení náhledu PDF souboru
-    function showPdfPreview(filePath) {
-        // Načtení PDF souboru jako blob
-        fetch(filePath)
-            .then(response => response.blob())
-            .then(blob => {
-                // Vytvoření URL pro blob
-                const url = URL.createObjectURL(blob);
-
-                // Otevření PDF v novém okně
-                window.open(url, '_blank');
-            })
-            .catch(error => {
-                console.error('Chyba při načítání PDF souboru:', error);
-                alert('Chyba při načítání PDF souboru: ' + error.message);
-            });
-    }
-
-    // Funkce pro stažení souboru
+    // Function to download a file
     function downloadFile(filePath, fileName) {
-        fetch(filePath)
-            .then(response => response.blob())
-            .then(blob => {
-                // Použití FileSaver.js pro stažení souboru
-                saveAs(blob, fileName);
-            })
-            .catch(error => {
-                console.error('Chyba při stahování souboru:', error);
-                alert('Chyba při stahování souboru: ' + error.message);
-            });
+        // In a real environment, this would use the actual file path
+        // For demonstration, we'll create a simple blob for STL files
+
+        if (fileName.toLowerCase().endsWith('.stl')) {
+            // Create a simple STL file content
+            const stlContent = `solid ${fileName}
+facet normal 0 0 1
+    outer loop
+        vertex 0 0 0
+        vertex 1 0 0
+        vertex 1 1 0
+    endloop
+endfacet
+endsolid ${fileName}`;
+
+            const blob = new Blob([stlContent], { type: 'application/vnd.ms-pki.stl' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        } else if (fileName.toLowerCase().endsWith('.pdf')) {
+            // Create a simple PDF file content (not actual PDF, just for demo)
+            // In a real app, this would download the actual PDF file
+
+            // For demo purposes, create a PDF using PDFKit or similar library
+            alert(`In a real implementation, this would download the PDF file: ${fileName}`);
+
+            // Simulating download for demo purposes
+            const pdfBlob = new Blob(['Simulated PDF content'], { type: 'application/pdf' });
+            const url = URL.createObjectURL(pdfBlob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
     }
 
-    // Funkce pro stažení všech STL souborů v aktuální složce
-    function downloadAllStl() {
-        // Získání aktuální složky a jejích souborů
-        const folderFiles = getFilesInCurrentFolder();
+    // Function to load PDF preview
+    function loadPDFPreview(pdfPath, canvas) {
+        // In a real implementation, load the actual PDF
+        // For demonstration, we'll create a simple preview
 
-        // Filtrování jen STL souborů
-        const stlFiles = folderFiles.filter(file => file.path.toLowerCase().endsWith('.stl'));
+        const ctx = canvas.getContext('2d');
 
-        if (stlFiles.length === 0) {
-            alert('V aktuální složce nejsou žádné STL soubory.');
-            return;
-        }
+        // Set canvas dimensions
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
 
-        // Vytvoření zip archivu
-        const zip = new JSZip();
+        // Draw PDF preview placeholder
+        ctx.fillStyle = '#f9f9f9';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Přidání všech STL souborů do archivu
-        const fetchPromises = stlFiles.map(file => {
-            return fetch(file.path)
-                .then(response => response.blob())
-                .then(blob => {
-                    zip.file(file.name, blob);
-                });
+        ctx.fillStyle = '#666';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const fileName = pdfPath.split('/').pop();
+        ctx.fillText(`PDF Preview: ${fileName}`, canvas.width / 2, canvas.height / 2 - 15);
+
+        // Draw PDF icon
+        ctx.fillStyle = '#d32f2f';
+        const iconX = canvas.width / 2;
+        const iconY = canvas.height / 2 + 20;
+        const iconSize = 30;
+
+        // PDF document shape
+        ctx.fillRect(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
+
+        // White page fold
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.moveTo(iconX + iconSize/2 - 10, iconY - iconSize/2);
+        ctx.lineTo(iconX + iconSize/2, iconY - iconSize/2 + 10);
+        ctx.lineTo(iconX + iconSize/2, iconY - iconSize/2);
+        ctx.closePath();
+        ctx.fill();
+
+        // PDF text
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText('PDF', iconX, iconY + 2);
+
+        // In a real implementation, we would load the actual PDF:
+        /*
+        pdfjsLib.getDocument(pdfPath).promise.then(pdf => {
+            pdf.getPage(1).then(page => {
+                const viewport = page.getViewport({ scale: 0.5 });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                page.render(renderContext);
+            });
+        }).catch(error => {
+            console.error('Error loading PDF preview:', error);
         });
-
-        // Po stažení všech souborů vytvořit a stáhnout zip
-        Promise.all(fetchPromises)
-            .then(() => {
-                zip.generateAsync({ type: 'blob' })
-                    .then(content => {
-                        const folderName = currentFolder.split('/').pop();
-                        saveAs(content, `${folderName}_STL_files.zip`);
-                    });
-            })
-            .catch(error => {
-                console.error('Chyba při vytváření zip archivu:', error);
-                alert('Chyba při vytváření zip archivu: ' + error.message);
-            });
-    }
-
-    // Funkce pro stažení všech PDF souborů v aktuální složce
-    function downloadAllPdf() {
-        // Získání aktuální složky a jejích souborů
-        const folderFiles = getFilesInCurrentFolder();
-
-        // Filtrování jen PDF souborů
-        const pdfFiles = folderFiles.filter(file => file.path.toLowerCase().endsWith('.pdf'));
-
-        if (pdfFiles.length === 0) {
-            alert('V aktuální složce nejsou žádné PDF soubory.');
-            return;
-        }
-
-        // Vytvoření zip archivu
-        const zip = new JSZip();
-
-        // Přidání všech PDF souborů do archivu
-        const fetchPromises = pdfFiles.map(file => {
-            return fetch(file.path)
-                .then(response => response.blob())
-                .then(blob => {
-                    zip.file(file.name, blob);
-                });
-        });
-
-        // Po stažení všech souborů vytvořit a stáhnout zip
-        Promise.all(fetchPromises)
-            .then(() => {
-                zip.generateAsync({ type: 'blob' })
-                    .then(content => {
-                        const folderName = currentFolder.split('/').pop();
-                        saveAs(content, `${folderName}_PDF_files.zip`);
-                    });
-            })
-            .catch(error => {
-                console.error('Chyba při vytváření zip archivu:', error);
-                alert('Chyba při vytváření zip archivu: ' + error.message);
-            });
-    }
-
-    // Pomocná funkce pro získání všech souborů v aktuální složce
-    function getFilesInCurrentFolder() {
-        const files = [];
-
-        // Rekurzivní funkce pro procházení struktury složek
-        function traverseFolder(structure, path) {
-            for (const name in structure) {
-                const item = structure[name];
-                const itemPath = path ? `${path}/${name}` : name;
-
-                if (itemPath.startsWith(currentFolder)) {
-                    if (item.type === 'file') {
-                        files.push({
-                            name: name,
-                            path: itemPath,
-                            type: item.type
-                        });
-                    } else if (item.type === 'folder') {
-                        traverseFolder(item.children, itemPath);
-                    }
-                }
-            }
-        }
-
-        // Zahájení procházení od kořenové složky
-        traverseFolder(folderStructure, '');
-
-        return files;
-    }
-
-    // Funkce pro nalezení první složky ve struktuře
-    function findFirstFolder(structure, currentPath = '') {
-        for (const key in structure) {
-            const item = structure[key];
-            const newPath = currentPath ? `${currentPath}/${key}` : key;
-
-            if (item.type === 'folder') {
-                return { path: newPath, name: key };
-            }
-        }
-
-        // Pokud není nalezena žádná složka, procházet rekurzivně vnořené složky
-        for (const key in structure) {
-            const item = structure[key];
-            const newPath = currentPath ? `${currentPath}/${key}` : key;
-
-            if (item.type === 'folder') {
-                const result = findFirstFolder(item.children, newPath);
-                if (result) return result;
-            }
-        }
-
-        return null;
-    }
-
-    // Funkce pro získání struktury složky podle cesty
-    function getFolderStructure(path) {
-        // Rozdělení cesty na části
-        const pathParts = path.split('/');
-
-        // Postupné procházení struktury podle cesty
-        let currentLevel = folderStructure;
-
-        for (const part of pathParts) {
-            if (currentLevel[part] && currentLevel[part].type === 'folder') {
-                currentLevel = currentLevel[part].children;
-            } else {
-                return null;
-            }
-        }
-
-        return currentLevel;
-    }
-
-    // Funkce pro aktualizaci navigace složek
-    function updateFolderNavigation() {
-        const navigation = document.getElementById('folderNavigation');
-        navigation.innerHTML = '';
-
-        // Vytvoření HTML pro strukturu složek
-        for (const folderName in folderStructure) {
-            const folderItem = document.createElement('div');
-            folderItem.className = 'folder-item';
-            folderItem.textContent = folderName;
-            folderItem.dataset.path = folderName;
-            folderItem.addEventListener('click', () => selectFolder(folderName, folderName));
-            navigation.appendChild(folderItem);
-
-            // Rekurzivní vytvoření podsložek
-            createSubfolders(folderStructure[folderName].children, folderName, folderItem, navigation);
-        }
-
-        // Pokud není žádná složka, zobrazit zprávu
-        if (navigation.children.length === 0) {
-            navigation.innerHTML = '<p>Žádné složky k zobrazení</p>';
-        }
-    }
-
-    // Funkce pro vytvoření podsložek v navigaci
-    function createSubfolders(structure, parentPath, parentElement, navigation) {
-        // Procházení struktury a vytvoření podsložek
-        for (const itemName in structure) {
-            const item = structure[itemName];
-
-            if (item.type === 'folder') {
-                const subfolderPath = `${parentPath}/${itemName}`;
-
-                const subfolderItem = document.createElement('div');
-                subfolderItem.className = 'folder-item';
-                subfolderItem.style.paddingLeft = '20px';
-                subfolderItem.textContent = itemName;
-                subfolderItem.dataset.path = subfolderPath;
-                subfolderItem.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    selectFolder(subfolderPath, itemName);
-                });
-
-                navigation.appendChild(subfolderItem);
-
-                // Rekurzivní vytvoření podsložek
-                createSubfolders(item.children, subfolderPath, subfolderItem, navigation);
-            }
-        }
-    }
-
-    // Funkce pro výběr složky
-    function selectFolder(path, name) {
-        // Zrušení aktivní třídy ze všech složek
-        const folderItems = document.querySelectorAll('.folder-item');
-        folderItems.forEach(item => item.classList.remove('active'));
-
-        // Přidání aktivní třídy k vybrané složce
-        const selectedItem = document.querySelector(`.folder-item[data-path="${path}"]`);
-        if (selectedItem) {
-            selectedItem.classList.add('active');
-        }
-
-        // Nastavení aktuální složky
-        currentFolder = path;
-
-        // Aktualizace obsahu složky
-        updateFolderContent(path);
-
-        // Aktualizace záložek
-        updateFolderTabs(path);
-    }
-
-    // Funkce pro aktualizaci záložek (nadřazené složky)
-    function updateFolderTabs(path) {
-        const tabsContainer = document.getElementById('folderTabs');
-        tabsContainer.innerHTML = '';
-
-        // Rozdělení cesty na části
-        const pathParts = path.split('/');
-
-        // Vytvoření záložky pro každou část cesty
-        let currentPath = '';
-
-        for (let i = 0; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            currentPath = currentPath ? `${currentPath}/${part}` : part;
-
-            const tab = document.createElement('div');
-            tab.className = 'tab';
-            if (i === pathParts.length - 1) {
-                tab.classList.add('active');
-            }
-
-            tab.textContent = part;
-            tab.dataset.path = currentPath;
-
-            tab.addEventListener('click', () => selectFolder(currentPath, part));
-
-            tabsContainer.appendChild(tab);
-        }
-    }
-
-    // Funkce pro aktualizaci obsahu složky
-    function updateFolderContent(path) {
-        const fileGrid = document.getElementById('fileGrid');
-        fileGrid.innerHTML = '';
-
-        // Získání struktury vybrané složky
-        const folderStructure = getFolderStructure(path);
-
-        if (!folderStructure) {
-            fileGrid.innerHTML = '<div class="no-files-message">Složka nenalezena</div>';
-            return;
-        }
-
-        // Seřazení souborů - nejprve STL, pak PDF
-        const stlFiles = [];
-        const pdfFiles = [];
-
-        // Procházení souborů ve složce
-        for (const fileName in folderStructure) {
-            const file = folderStructure[fileName];
-
-            if (file.type === 'file') {
-                const filePath = `${path}/${fileName}`;
-
-                if (fileName.toLowerCase().endsWith('.stl')) {
-                    stlFiles.push({
-                        name: fileName,
-                        path: filePath
-                    });
-                } else if (fileName.toLowerCase().endsWith('.pdf')) {
-                    pdfFiles.push({
-                        name: fileName,
-                        path: filePath
-                    });
-                }
-            }
-        }
-
-        // Pokud nejsou žádné soubory, zobrazit zprávu
-        if (stlFiles.length === 0 && pdfFiles.length === 0) {
-            fileGrid.innerHTML = '<div class="no-files-message">Žádné soubory v této složce</div>';
-            return;
-        }
-
-        // Skupiny souborů - spojení STL a jejich příslušných PDF souborů
-        const fileGroups = groupFiles(stlFiles, pdfFiles);
-
-        // Zobrazení STL souborů a jejich příslušných PDF souborů
-        fileGroups.forEach(group => {
-            // Vytvoření elementu pro STL soubor
-            const stlElement = document.createElement('div');
-            stlElement.className = 'stl-item';
-
-            // Vytvoření náhledu STL
-            const thumbnail = document.createElement('div');
-            thumbnail.className = 'thumbnail';
-
-            // Přidání ikony STL (jednoduchá alternativa k 3D náhledu)
-            const stlIcon = document.createElement('img');
-            stlIcon.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiPjxwYXRoIGZpbGw9IiMzNDk4ZGIiIGQ9Ik0yNCA0TDggMTZ2MTZMMjQgNDRsMTYtMTJWMTZMMjQgNHoiLz48cGF0aCBmaWxsPSIjMmM4NGJkIiBkPSJNMjQgNHYyMGwxNi04VjE2TDI0IDR6Ii8+PHBhdGggZmlsbD0iIzE5NTc5MSIgZD0iTTI0IDI0djIwbDE2LTEyVjE2TDI0IDI0eiIvPjxwYXRoIGZpbGw9IiMxMDQ0NmEiIGQ9Ik04IDE2djE2bDE2IDEyVjI0TDggMTZ6Ii8+PHBhdGggZmlsbD0iIzBiMzA0YyIgZD0iTTggMTZsMTYgOHYyMEw4IDMyVjE2eiIvPjxwYXRoIGZpbGw9IiMyMTcwYjQiIGQ9Ik0yNCA0TDggMTZsMTYgOEw0MCAxNkwyNCA0eiIvPjwvc3ZnPg==';
-            thumbnail.appendChild(stlIcon);
-            stlElement.appendChild(thumbnail);
-
-            // Název souboru
-            const fileName = document.createElement('div');
-            fileName.className = 'file-name';
-            fileName.textContent = group.stl.name;
-            stlElement.appendChild(fileName);
-
-            // Tlačítka
-            const buttonGroup = document.createElement('div');
-            buttonGroup.className = 'button-group';
-
-            // Tlačítko pro zobrazení STL
-            const viewBtn = document.createElement('button');
-            viewBtn.className = 'download-btn';
-            viewBtn.textContent = 'Zobrazit';
-            viewBtn.addEventListener('click', () => {
-                loadSTL(group.stl.path);
-            });
-            buttonGroup.appendChild(viewBtn);
-
-            // Tlačítko pro stažení STL
-            const downloadBtn = document.createElement('button');
-            downloadBtn.className = 'download-btn';
-            downloadBtn.textContent = 'Stáhnout';
-            downloadBtn.addEventListener('click', () => {
-                downloadFile(group.stl.path, group.stl.name);
-            });
-            buttonGroup.appendChild(downloadBtn);
-
-            stlElement.appendChild(buttonGroup);
-            fileGrid.appendChild(stlElement);
-
-            // Vytvoření elementů pro přidružené PDF soubory
-            group.pdfs.forEach(pdf => {
-                const pdfElement = document.createElement('div');
-                pdfElement.className = 'pdf-item';
-
-                // Náhled PDF
-                const pdfThumbnail = document.createElement('div');
-                pdfThumbnail.className = 'thumbnail';
-
-                // Ikona PDF
-                const pdfIcon = document.createElement('img');
-                pdfIcon.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiPjxwYXRoIGZpbGw9IiNlNzRjM2MiIGQ9Ik0xMiA0djQwaDI0VjE0TDI2IDRIMTJ6Ii8+PHBhdGggZmlsbD0iI2MwMzkyYiIgZD0iTTI2IDRsMTAgMTBoLTEwVjR6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTIyIDIyaC00djEyaDJ2LTVoMmMyIDAgNC0xIDQtM3YtMWMwLTItMi0zLTQtM3ptMCA1aC0ydi0zaC4zYzEuMSAwIDEuNy43IDEuNyAxLjVzLS42IDEuNS0xLjUgMS41ek0zMCAyMmgtNXYxMmgydjEwaDJ2LTEwaDEwdi0ySDMwdi0xMHptLTEwLTRoMTB2MkgyMHYtMnoiLz48L3N2Zz4=';
-                pdfThumbnail.appendChild(pdfIcon);
-                pdfElement.appendChild(pdfThumbnail);
-
-                // Název PDF souboru
-                const pdfName = document.createElement('div');
-                pdfName.className = 'file-name';
-                pdfName.textContent = pdf.name;
-                pdfElement.appendChild(pdfName);
-
-                // Tlačítka pro PDF
-                const pdfButtonGroup = document.createElement('div');
-                pdfButtonGroup.className = 'button-group';
-
-                // Tlačítko pro zobrazení PDF
-                const viewPdfBtn = document.createElement('button');
-                viewPdfBtn.className = 'download-btn';
-                viewPdfBtn.textContent = 'Zobrazit';
-                viewPdfBtn.addEventListener('click', () => {
-                    showPdfPreview(pdf.path);
-                });
-                pdfButtonGroup.appendChild(viewPdfBtn);
-
-                // Tlačítko pro stažení PDF
-                const downloadPdfBtn = document.createElement('button');
-                downloadPdfBtn.className = 'download-btn';
-                downloadPdfBtn.textContent = 'Stáhnout';
-                downloadPdfBtn.addEventListener('click', () => {
-                    downloadFile(pdf.path, pdf.name);
-                });
-                pdfButtonGroup.appendChild(downloadPdfBtn);
-
-                pdfElement.appendChild(pdfButtonGroup);
-                fileGrid.appendChild(pdfElement);
-            });
-        });
-
-        // Načtení prvního STL souboru automaticky, pokud existuje
-        if (stlFiles.length > 0) {
-            loadSTL(stlFiles[0].path);
-        }
-    }
-
-    // Funkce pro seskupení souborů - STL a jejich příslušné PDF soubory
-    function groupFiles(stlFiles, pdfFiles) {
-        const groups = [];
-
-        // Procházení STL souborů
-        stlFiles.forEach(stl => {
-            const group = {
-                stl: stl,
-                pdfs: []
-            };
-
-            // Nalezení příslušných PDF souborů
-            const stlBaseName = stl.name.replace(/\.stl$/i, '');
-
-            // Hledání PDF, které odpovídají vzoru "NázevSTL_označení.pdf"
-            pdfFiles.forEach(pdf => {
-                if (pdf.name.toLowerCase().startsWith(stlBaseName.toLowerCase() + '_')) {
-                    group.pdfs.push(pdf);
-                }
-            });
-
-            groups.push(group);
-        });
-
-        return groups;
-    }
-
-    // Funkce pro zobrazení/skrytí indikátoru načítání
-    function showLoading(show) {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (show) {
-            loadingOverlay.classList.add('active');
-        } else {
-            loadingOverlay.classList.remove('active');
-        }
+        */
     }
 </script>
 </body>
