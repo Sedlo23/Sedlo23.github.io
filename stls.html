@@ -134,6 +134,13 @@
                 width: 90%;
             }
         }
+
+        .error-message {
+            color: #f44336;
+            text-align: center;
+            padding: 20px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -145,20 +152,52 @@
 <div id="loading" class="loading">Loading models from STL folder...</div>
 <div id="container" class="container"></div>
 
-<!-- Load libraries directly -->
+<!-- Load Three.js libraries -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/STLLoader.js"></script>
 
+<!-- Server-side API endpoint to list files -->
 <script>
+    // The PHP script that should be placed alongside this file
+    /*
+    <?php
+    // list_files.php
+    header('Content-Type: application/json');
+    header('Access-Control-Allow-Origin: *');
+
+    $dir = 'STL'; // Directory to scan
+    $files = [];
+
+    if (is_dir($dir)) {
+        $stl_files = glob($dir . '/*.stl');
+        foreach ($stl_files as $stl_file) {
+            $file_info = [
+                'name' => basename($stl_file),
+                'path' => $stl_file,
+                'hasPdf' => file_exists(str_replace('.stl', '.pdf', $stl_file))
+            ];
+
+            if ($file_info['hasPdf']) {
+                $file_info['pdfPath'] = str_replace('.stl', '.pdf', $stl_file);
+            }
+
+            $files[] = $file_info;
+        }
+    }
+
+    echo json_encode(['files' => $files]);
+    ?>
+    */
+
     // Main functionality
     document.addEventListener('DOMContentLoaded', async () => {
         const container = document.getElementById('container');
         const loadingElement = document.getElementById('loading');
 
         try {
-            // Fetch list of files from STL folder
-            const stlFiles = await getFilesFromFolder('STL');
+            // Fetch list of files from API
+            const stlFiles = await getFilesFromAPI();
 
             if (stlFiles.length === 0) {
                 loadingElement.textContent = 'No STL files found in the STL folder.';
@@ -170,47 +209,55 @@
 
             // Process each STL file
             for (const file of stlFiles) {
-                if (file.name.toLowerCase().endsWith('.stl')) {
-                    createModelContainer(file);
-                }
+                createModelContainer(file);
             }
         } catch (error) {
-            loadingElement.textContent = `Error loading files: ${error.message}`;
+            loadingElement.innerHTML = `<div class="error-message">Error loading files: ${error.message}</div>`;
             console.error('Error:', error);
         }
     });
 
-    // Function to get files from a folder
-    async function getFilesFromFolder(folderPath) {
+    // Function to get files from the API
+    async function getFilesFromAPI() {
         try {
-            // In a real environment, this would need server-side code or file system access
-            // For demonstration, we'll simulate file listing with fetch from a directory listing
+            // First try to fetch from the API
+            try {
+                const response = await fetch('list_files.php');
 
-            // For demonstration purposes, we'll create some sample files
-            // In a real application, replace this with actual file discovery
-            const sampleFiles = [
-                { name: 'cube.stl', path: 'STL/cube.stl' },
-                { name: 'sphere.stl', path: 'STL/sphere.stl' },
-                { name: 'cylinder.stl', path: 'STL/cylinder.stl' }
-            ];
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
 
-            return sampleFiles;
+                const data = await response.json();
+                return data.files || [];
+            } catch (apiError) {
+                console.warn('API error:', apiError);
+                console.log('Falling back to demo mode');
+
+                // Fall back to demo mode
+                return [
+                    {
+                        name: 'cube.stl',
+                        path: 'STL/cube.stl',
+                        hasPdf: true,
+                        pdfPath: 'STL/cube.pdf'
+                    },
+                    {
+                        name: 'sphere.stl',
+                        path: 'STL/sphere.stl',
+                        hasPdf: false
+                    },
+                    {
+                        name: 'cylinder.stl',
+                        path: 'STL/cylinder.stl',
+                        hasPdf: false
+                    }
+                ];
+            }
         } catch (error) {
             console.error('Error fetching files:', error);
-            throw new Error('Failed to fetch files from directory');
+            throw new Error('Failed to fetch files from server');
         }
-    }
-
-    // Function to check if a corresponding PDF exists
-    async function checkForPDF(stlFilePath) {
-        const pdfPath = stlFilePath.replace('.stl', '.pdf');
-
-        // In a real implementation, check if the PDF file exists
-        // For demonstration, we'll assume some STL files have PDFs
-        const fileName = stlFilePath.split('/').pop();
-
-        // Simulate that cube.stl has a corresponding PDF file
-        return fileName === 'cube.stl' ? pdfPath : null;
     }
 
     // Function to create a container for each model
@@ -242,19 +289,16 @@
         stlButton.addEventListener('click', () => downloadFile(file.path, file.name));
         buttonContainer.appendChild(stlButton);
 
-        // Check for corresponding PDF
-        const pdfPath = await checkForPDF(file.path);
-
         // Create PDF preview container
         const pdfPreviewContainer = document.createElement('div');
         pdfPreviewContainer.className = 'pdf-preview-container';
 
-        if (pdfPath) {
+        if (file.hasPdf) {
             // Create PDF download button
             const pdfButton = document.createElement('button');
             pdfButton.className = 'pdf-button';
             pdfButton.textContent = 'Download PDF';
-            pdfButton.addEventListener('click', () => downloadFile(pdfPath, pdfPath.split('/').pop()));
+            pdfButton.addEventListener('click', () => downloadFile(file.pdfPath, file.pdfPath.split('/').pop()));
             buttonContainer.appendChild(pdfButton);
 
             // Create PDF preview
@@ -264,7 +308,7 @@
             pdfPreviewContainer.style.display = 'block';
 
             // Load PDF preview
-            loadPDFPreview(pdfPath, pdfPreview);
+            loadPDFPreview(file.pdfPath, pdfPreview);
         }
 
         modelContainer.appendChild(buttonContainer);
@@ -310,56 +354,52 @@
 
         // Load the STL model
         const loader = new THREE.STLLoader();
-
-        // For demo purposes, load a basic cube or sphere if model path doesn't exist
         let demoObject;
 
-        if (modelPath.includes('cube')) {
-            // Create a cube for demonstration
-            const geometry = new THREE.BoxGeometry(2, 2, 2);
-            const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
-            demoObject = new THREE.Mesh(geometry, material);
-            scene.add(demoObject);
-            centerObject(demoObject, scene, camera);
-        } else if (modelPath.includes('sphere')) {
-            // Create a sphere for demonstration
-            const geometry = new THREE.SphereGeometry(1.5, 32, 32);
-            const material = new THREE.MeshStandardMaterial({ color: 0xff5533 });
-            demoObject = new THREE.Mesh(geometry, material);
-            scene.add(demoObject);
-            centerObject(demoObject, scene, camera);
-        } else if (modelPath.includes('cylinder')) {
-            // Create a cylinder for demonstration
-            const geometry = new THREE.CylinderGeometry(1, 1, 2, 32);
-            const material = new THREE.MeshStandardMaterial({ color: 0x22ff55 });
-            demoObject = new THREE.Mesh(geometry, material);
-            scene.add(demoObject);
-            centerObject(demoObject, scene, camera);
-        } else {
-            // In a real implementation, load the actual STL file
-            // For now, we'll just create a default shape
-            try {
-                // This would load the actual model in a real implementation
-                // loader.load(modelPath, function(geometry) {
-                //     const material = new THREE.MeshStandardMaterial({
-                //         color: 0x7777ff,
-                //         metalness: 0.1,
-                //         roughness: 0.5
-                //     });
-                //     const mesh = new THREE.Mesh(geometry, material);
-                //     scene.add(mesh);
-                //     centerObject(mesh, scene, camera);
-                // });
+        // Try to load the actual STL file
+        try {
+            loader.load(modelPath, function(geometry) {
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0x7777ff,
+                    metalness: 0.1,
+                    roughness: 0.5
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                scene.add(mesh);
+                centerObject(mesh, scene, camera);
+            }, undefined, function(error) {
+                console.error('Error loading STL:', error);
 
-                // For demo, create a default object
+                // Fall back to demo objects if loading fails
+                createFallbackObject(modelPath);
+            });
+        } catch (error) {
+            console.error('Error setting up STL loader:', error);
+            createFallbackObject(modelPath);
+        }
+
+        // Function to create fallback objects when STL loading fails
+        function createFallbackObject(path) {
+            if (path.includes('cube')) {
+                const geometry = new THREE.BoxGeometry(2, 2, 2);
+                const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+                demoObject = new THREE.Mesh(geometry, material);
+            } else if (path.includes('sphere')) {
+                const geometry = new THREE.SphereGeometry(1.5, 32, 32);
+                const material = new THREE.MeshStandardMaterial({ color: 0xff5533 });
+                demoObject = new THREE.Mesh(geometry, material);
+            } else if (path.includes('cylinder')) {
+                const geometry = new THREE.CylinderGeometry(1, 1, 2, 32);
+                const material = new THREE.MeshStandardMaterial({ color: 0x22ff55 });
+                demoObject = new THREE.Mesh(geometry, material);
+            } else {
                 const geometry = new THREE.TorusGeometry(1, 0.4, 16, 100);
                 const material = new THREE.MeshStandardMaterial({ color: 0xaa33ff });
                 demoObject = new THREE.Mesh(geometry, material);
-                scene.add(demoObject);
-                centerObject(demoObject, scene, camera);
-            } catch (error) {
-                console.error('Error loading STL:', error);
             }
+
+            scene.add(demoObject);
+            centerObject(demoObject, scene, camera);
         }
 
         // Animation loop
@@ -419,61 +459,35 @@
 
     // Function to download a file
     function downloadFile(filePath, fileName) {
-        // In a real environment, this would use the actual file path
-        // For demonstration, we'll create a simple blob for STL files
+        // Actually download the file from the server
+        fetch(filePath)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
 
-        if (fileName.toLowerCase().endsWith('.stl')) {
-            // Create a simple STL file content
-            const stlContent = `solid ${fileName}
-facet normal 0 0 1
-    outer loop
-        vertex 0 0 0
-        vertex 1 0 0
-        vertex 1 1 0
-    endloop
-endfacet
-endsolid ${fileName}`;
-
-            const blob = new Blob([stlContent], { type: 'application/vnd.ms-pki.stl' });
-            const url = URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 100);
-        } else if (fileName.toLowerCase().endsWith('.pdf')) {
-            // Create a simple PDF file content (not actual PDF, just for demo)
-            // In a real app, this would download the actual PDF file
-
-            // For demo purposes, create a PDF using PDFKit or similar library
-            alert(`In a real implementation, this would download the PDF file: ${fileName}`);
-
-            // Simulating download for demo purposes
-            const pdfBlob = new Blob(['Simulated PDF content'], { type: 'application/pdf' });
-            const url = URL.createObjectURL(pdfBlob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }, 100);
-        }
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+            })
+            .catch(error => {
+                console.error('Error downloading file:', error);
+                alert(`Error downloading file: ${error.message}`);
+            });
     }
 
-    // Function to load PDF preview using simple canvas approach instead of PDF.js
+    // Function to load PDF preview
     function loadPDFPreview(pdfPath, canvas) {
         // Get the canvas context
         const ctx = canvas.getContext('2d');
@@ -482,81 +496,61 @@ endsolid ${fileName}`;
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
-        // Draw PDF preview placeholder
-        ctx.fillStyle = '#f9f9f9';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = '#666';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        const fileName = pdfPath.split('/').pop();
-        ctx.fillText(`PDF: ${fileName}`, canvas.width / 2, canvas.height / 2 - 15);
-
-        // Draw PDF icon
-        ctx.fillStyle = '#d32f2f';
-        const iconX = canvas.width / 2;
-        const iconY = canvas.height / 2 + 20;
-        const iconSize = 30;
-
-        // PDF document shape
-        ctx.fillRect(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
-
-        // White page fold
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.moveTo(iconX + iconSize/2 - 10, iconY - iconSize/2);
-        ctx.lineTo(iconX + iconSize/2, iconY - iconSize/2 + 10);
-        ctx.lineTo(iconX + iconSize/2, iconY - iconSize/2);
-        ctx.closePath();
-        ctx.fill();
-
-        // PDF text
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 12px Arial';
-        ctx.fillText('PDF', iconX, iconY + 2);
-    }
-
-    // Function to dynamically load actual STL files
-    // This is a placeholder for real implementation
-    async function loadActualFiles() {
-        // In a real implementation, this would scan the "STL" directory
-        // and load the actual STL files found there
-
-        // For server environments, this might use:
-        // 1. A server-side script to list files in the directory
-        // 2. Fetch API to get the file list
-        // 3. Then process each file
-
-        // Example of a server endpoint that would return file list:
-        // const response = await fetch('/api/list-stl-files');
-        // const files = await response.json();
-        // return files;
-
-        // For local file system in modern browsers, you could use File System Access API:
-        // But this requires user permission and modern browser support
-        /*
-        try {
-            const dirHandle = await window.showDirectoryPicker();
-            const files = [];
-
-            for await (const entry of dirHandle.values()) {
-                if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.stl')) {
-                    const file = await entry.getFile();
-                    files.push({
-                        name: file.name,
-                        path: URL.createObjectURL(file)
-                    });
+        // Try to fetch the PDF to verify it exists
+        fetch(pdfPath)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            }
 
-            return files;
-        } catch (error) {
-            console.error('Error accessing files:', error);
-            return [];
-        }
-        */
+                // Draw PDF preview placeholder
+                ctx.fillStyle = '#f9f9f9';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#666';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const fileName = pdfPath.split('/').pop();
+                ctx.fillText(`PDF: ${fileName}`, canvas.width / 2, canvas.height / 2 - 15);
+
+                // Draw PDF icon
+                ctx.fillStyle = '#d32f2f';
+                const iconX = canvas.width / 2;
+                const iconY = canvas.height / 2 + 20;
+                const iconSize = 30;
+
+                // PDF document shape
+                ctx.fillRect(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
+
+                // White page fold
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.moveTo(iconX + iconSize/2 - 10, iconY - iconSize/2);
+                ctx.lineTo(iconX + iconSize/2, iconY - iconSize/2 + 10);
+                ctx.lineTo(iconX + iconSize/2, iconY - iconSize/2);
+                ctx.closePath();
+                ctx.fill();
+
+                // PDF text
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText('PDF', iconX, iconY + 2);
+            })
+            .catch(error => {
+                console.error('Error loading PDF preview:', error);
+
+                // Draw error message
+                ctx.fillStyle = '#f9f9f9';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#d32f2f';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('PDF not available', canvas.width / 2, canvas.height / 2);
+            });
     }
 </script>
 </body>
